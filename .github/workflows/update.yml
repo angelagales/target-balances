@@ -1,4 +1,7 @@
 # ------------------------------------------------------------
+# Angela Gales
+# This code was cleaned up using Claude to comment steps 
+# and order the script.
 # Runs update.R automatically and saves the new chart.
 # ------------------------------------------------------------
 
