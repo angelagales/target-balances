@@ -1,15 +1,18 @@
 # ------------------------------------------------------------
+# Angela Gales
+# Cod formatted with the help of Claude for commented // clear
+# code that can be understandable for readers
 # TARGET balances tracker
 # Downloads the latest TARGET balances from the ECB, draws a
 # chart for Germany, France, Italy, Spain and the ECB, and
-# builds a web page with clickable explanations on the right.
+# builds an html with clickable explanations on the right.
 # ------------------------------------------------------------
 
-library(plotly)      # draws interactive charts
-library(htmltools)   # builds the web page around the chart
+library(plotly)      # pckg to draw interactive charts
+library(htmltools)   # pckg to build the html
 
 
-# 1. Where the data lives
+# DATA
 #    ECB Data Portal, dataset "TGB" (TARGET balances)
 #    M  = monthly
 #    DE, FR, IT, ES = countries;  4F = the ECB itself
@@ -22,25 +25,25 @@ url <- paste0(
 )
 
 
-# 2. Download the data (it arrives as a table)
+# Download
 raw <- read.csv(url)
 
 
-# 3. Keep only what we need, with simple names
+# DROP REST
 data <- data.frame(
   country = raw$REF_AREA,
   month   = as.Date(paste0(raw$TIME_PERIOD, "-01")),
-  billion = raw$OBS_VALUE / 1000      # ECB gives millions, we show billions
+  billion = raw$OBS_VALUE / 1000      # ECB gives millions, convert into bls
 )
 
 
-# 4. Replace codes with full names
+# Name country codes
 full_names   <- c(DE = "Germany", FR = "France", IT = "Italy",
                   ES = "Spain",   "4F" = "ECB")
 data$country <- full_names[data$country]
 
 
-# 5. Draw the chart
+# Draw chart
 latest <- format(max(data$month), "%B %Y")
 
 chart <- plot_ly(data, x = ~month, y = ~billion, color = ~country,
@@ -52,7 +55,7 @@ chart <- plot_ly(data, x = ~month, y = ~billion, color = ~country,
   )
 
 
-# 6. The explanations
+# Explain for clarity what Target shows
 #    Each one is a "details" box: the "summary" is the title you click,
 #    and the paragraphs after it only appear once it is opened.
 
@@ -61,8 +64,7 @@ topic_what <- tags$details(
   p("The euro is one currency, but each euro-area country keeps its own
      national central bank, each with its own balance sheet. When money
      moves from a bank in one country to a bank in another, it travels
-     through TARGET, the payment system of the Eurosystem (the ECB and the
-     national central banks of the euro area)."),
+     through TARGET, the payment system of the Eurosystem."),
   p("Every cross-border transfer leaves the receiving central bank with a
      claim on the ECB, and the sending central bank with a liability to
      the ECB. TARGET balances are these claims and liabilities added up
@@ -75,15 +77,12 @@ topic_read <- tags$details(
      out of it. Below zero: the opposite."),
   p("By design, all balances together add up to zero, once the ECB and the
      non-euro central banks that take part are included. The five lines on
-     this chart are therefore only part of the total."),
-  p("Tip: hover over a line to see exact values, click a name in the legend
-     to hide or show it, and drag across the chart to zoom in. Double-click
-     to zoom back out.")
+     this chart are therefore only part of the total.")
 )
 
 topic_include <- tags$details(
   tags$summary("What does TARGET include?"),
-  p("Today, TARGET is a family of services, known as TARGET Services:"),
+  p("Today, TARGET reunites several of services, known as TARGET Services:"),
   tags$ul(
     tags$li(strong("T2"), " for large payments between banks and for the
             central bank's own operations"),
@@ -116,13 +115,12 @@ topic_history <- tags$details(
 )
 
 topic_debate <- tags$details(
-  tags$summary("Why do people debate them?"),
-  p("TARGET balances grew sharply during the euro crisis of 2010–2012 and
-     again during the ECB's large bond-buying programmes. Some economists,
-     most prominently Hans-Werner Sinn, see them as hidden loans between
-     countries that carry real risk. The ECB and many other economists see
+  tags$summary("Why does this matter?"),
+  p("The ECB and many other economists see
      them as the normal result of a single currency in which money can move
-     freely, and argue that they pose no risk as long as the euro exists.")
+     freely, and argue that they pose no risk as long as the euro exists. But 
+    TARGET balances grew sharply during the euro crisis of 2010–2012 and
+     again during the ECB's large bond-buying programmes.")
 )
 
 topic_source <- tags$details(
@@ -130,7 +128,7 @@ topic_source <- tags$details(
   p("Data: European Central Bank, ",
     tags$a(href = "https://data.ecb.europa.eu/data/datasets/TGB",
            "ECB Data Portal, dataset TGB"),
-    ". End-of-month values, converted from millions to billions of euro.
+    ". End-of-month values.
      Country data start in 2001; the ECB's own balance starts in 2008.")
 )
 
