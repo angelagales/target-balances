@@ -2,7 +2,8 @@
 # Angela Gales
 # This code was cleaned up using Claude to comment steps 
 # and order the script.
-# Runs update.R automatically and saves the new chart.
+# Runs bilateral.R and update.R automatically and saves the new
+# chart and table.
 # ------------------------------------------------------------
 
 name: Update chart
@@ -34,8 +35,16 @@ jobs:
           packages: |
             any::plotly
             any::htmlwidgets
+            any::httr2
+            any::jsonlite
 
-      - name: Run the R script
+      # bilateral.R first, it makes the table update.R puts on the page.
+      # If it fails (e.g. a website is down) the chart still updates.
+      - name: Run bilateral.R (the table)
+        continue-on-error: true
+        run: Rscript bilateral.R
+
+      - name: Run update.R (the page)
         run: Rscript update.R
 
       - name: Save the new chart in the repo
@@ -43,5 +52,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add index.html lib
+          git add bilateral_target_simple.csv bilateral_target_simple_by_source.csv || echo "No table this time"
           git commit -m "Monthly chart update" || echo "Nothing changed"
           git push
