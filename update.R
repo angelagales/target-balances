@@ -223,7 +223,7 @@ page <- tagList(
     div(                                         # right column
       p(class = "small", "Click a topic to read more:"),
       topic_what, topic_read, topic_include,
-      topic_history, topic_debate, topic_source
+            topic_history, topic_source
     )
   ),
 
