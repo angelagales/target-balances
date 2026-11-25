@@ -1,7 +1,6 @@
 # ------------------------------------------------------------
 # Angela Gales
 # Cod formatted with the help of Claude for commented // clear
-# code that can be understandable for readers
 # TARGET balances tracker
 # Downloads the latest TARGET balances from the ECB, draws a
 # chart for Germany, France, Italy, Spain and the ECB, and
@@ -61,14 +60,11 @@ chart <- plot_ly(data, x = ~month, y = ~billion, color = ~country,
 
 topic_what <- tags$details(
   tags$summary("What are TARGET balances?"),
-  p("The euro is one currency, but each euro-area country keeps its own
-     national central bank, each with its own balance sheet. When money
-     moves from a bank in one country to a bank in another, it travels
-     through TARGET, the payment system of the Eurosystem."),
-  p("Every cross-border transfer leaves the receiving central bank with a
-     claim on the ECB, and the sending central bank with a liability to
-     the ECB. TARGET balances are these claims and liabilities added up
-     over time.")
+  p("TARGET balances are the net claims and liabilities of the euro area 
+    national central banks (NCBs) vis-à-vis the ECB which arise through 
+    cross-border payments settled in central bank money. These payments 
+  are made through TARGET, the Eurosystem's payment system (ECB-inspired 
+  definition.")
 )
 
 topic_read <- tags$details(
@@ -76,8 +72,7 @@ topic_read <- tags$details(
   p("Above zero: over time, more money has flowed into that country than
      out of it. Below zero: the opposite."),
   p("By design, all balances together add up to zero, once the ECB and the
-     non-euro central banks that take part are included. The five lines on
-     this chart are therefore only part of the total.")
+     non-euro central banks that take part are included.")
 )
 
 topic_include <- tags$details(
@@ -91,8 +86,7 @@ topic_include <- tags$details(
   ),
   p("At the end of every day, all cross-border flows across these services
      are combined into a single balance for each central bank against the
-     ECB. So the figures cover all of TARGET, not only large payments.
-     Banknotes are recorded separately and are not included.")
+     ECB.")
 )
 
 topic_history <- tags$details(
@@ -112,15 +106,7 @@ topic_history <- tags$details(
     tags$li(strong("2026: "), "Pontes links blockchain-based platforms
             to TARGET.")
   )
-)
 
-topic_debate <- tags$details(
-  tags$summary("Why does this matter?"),
-  p("The ECB and many other economists see
-     them as the normal result of a single currency in which money can move
-     freely, and argue that they pose no risk as long as the euro exists. But 
-    TARGET balances grew sharply during the euro crisis of 2010–2012 and
-     again during the ECB's large bond-buying programmes.")
 )
 
 topic_source <- tags$details(
@@ -184,41 +170,38 @@ if (file.exists("bilateral_target_simple.csv")) {
     tags$summary("How to read the table"),
     p("Each row is a country. Each cell is the money that came into that
        country from the partner in the column, minus the money that went
-       out to it, added up from 2009 to 2025, in € billion. Positive means
-       more came in, which pushes the country's TARGET balance up."),
+       out to it, added up from 2009 to 2025, in € billion."),
     p("The last three columns compare the sum of all these flows with how
        much the TARGET balance actually moved from December 2008 to
-       December 2025. The gap is the difference, shown as it is.")
+       December 2025. The gap is the difference.")
   )
   bt_counted <- tags$details(
     tags$summary("What is counted"),
     p("Only data published by partner country: goods (IMF), services
        (Eurostat), direct investment and its income (Eurostat), shares and
-       bonds (IMF) and bank loans and deposits (BIS). Nothing is estimated
-       or filled in.")
+       bonds (IMF) and bank loans and deposits (BIS).")
   )
   bt_missing <- tags$details(
-    tags$summary("What is not counted (the gap)"),
+    tags$summary("What is in the gap?"),
     p("Everything that is not published by partner: wages of cross border
        workers, interest and dividends, transfers such as the EU budget,
-       derivatives, loans outside banks, errors and omissions. Also the
-       years a source does not publish, for example services before 2010
+       derivatives, loans outside banks, errors and omissions. There are
+    also years that a source does not publish, for example services before 2010
        to 2013 and direct investment before 2013.")
   )
   bt_meaning <- tags$details(
     tags$summary("What it shows"),
     p("Flows between the four countries are small. Most of the money goes
        through the rest of the euro area (financial centres like
-       Luxembourg, Ireland, the Netherlands) and the rest of the world.
+       Luxembourg, Ireland, the Netherlands perhaps) and the rest of the world.
        The biggest direct link is Germany and Spain.")
   )
 
   bilateral_section <- div(
-    h2("Who owes whom? The money flows behind TARGET, 2009 to 2025"),
+    h2("Attempt of reconstruction/estimate of the flows behind TARGET, 2009 to 2025"),
     p(class = "small",
-      "The ECB only publishes one TARGET balance per country, not who owes
-       whom. This table looks at the money that actually moved between
-       countries."),
+      "The ECB only publishes one TARGET balance per country. This table estimates the bilateral
+      TARGET balances between Germany, France, SPain, Itally (the countries in Benoît's paper)."),
     tags$table(class = "bt", header, rows),
     bt_read, bt_counted, bt_missing, bt_meaning
   )
