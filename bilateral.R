@@ -515,7 +515,7 @@ rownames(result) <- full_names[four]
 colnames(result)[1:4] <- full_names[four]
 
 print(result)
-View(result)
+#View(result)
 write.csv(result, "bilateral_target_simple.csv")
 
 #    row totals per source, to see what drives each row (bls)
