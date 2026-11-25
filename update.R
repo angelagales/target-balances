@@ -150,11 +150,79 @@ style <- tags$style("
   summary:hover { text-decoration: underline; }
   details p, details ul { font-size: 15px; }
 
+  /* the bilateral table under the chart */
+  .bt    { border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  .bt th, .bt td { padding: 8px 12px; border: 1px solid #ddd; text-align: right; }
+  .bt th { background: #f4f4f4; }
+
   /* on phones: one column, topics under the chart */
   @media (max-width: 800px) {
     .layout { grid-template-columns: 1fr; }
   }
 ")
+
+
+# Bilateral table (made by bilateral.R)
+#    bilateral.R saves bilateral_target_simple.csv. If the file is
+#    there, I show it as a table under the chart. If not, the page
+#    is just built without it.
+bilateral_section <- NULL
+if (file.exists("bilateral_target_simple.csv")) {
+  bt <- read.csv("bilateral_target_simple.csv", check.names = FALSE)
+  names(bt)[1] <- ""
+
+  #    header row, then one row per country
+  header <- tags$tr(lapply(names(bt), tags$th))
+  rows <- lapply(seq_len(nrow(bt)), function(i) {
+    tags$tr(tags$th(bt[i, 1]),
+            lapply(bt[i, -1], function(x)
+              tags$td(if (is.na(x)) "–" else format(x, nsmall = 1))))
+  })
+
+  #    clickable explanations, like on the right of the chart
+  bt_read <- tags$details(
+    tags$summary("How to read the table"),
+    p("Each row is a country. Each cell is the money that came into that
+       country from the partner in the column, minus the money that went
+       out to it, added up from 2009 to 2025, in € billion. Positive means
+       more came in, which pushes the country's TARGET balance up."),
+    p("The last three columns compare the sum of all these flows with how
+       much the TARGET balance actually moved from December 2008 to
+       December 2025. The gap is the difference, shown as it is.")
+  )
+  bt_counted <- tags$details(
+    tags$summary("What is counted"),
+    p("Only data published by partner country: goods (IMF), services
+       (Eurostat), direct investment and its income (Eurostat), shares and
+       bonds (IMF) and bank loans and deposits (BIS). Nothing is estimated
+       or filled in.")
+  )
+  bt_missing <- tags$details(
+    tags$summary("What is not counted (the gap)"),
+    p("Everything that is not published by partner: wages of cross border
+       workers, interest and dividends, transfers such as the EU budget,
+       derivatives, loans outside banks, errors and omissions. Also the
+       years a source does not publish, for example services before 2010
+       to 2013 and direct investment before 2013.")
+  )
+  bt_meaning <- tags$details(
+    tags$summary("What it shows"),
+    p("Flows between the four countries are small. Most of the money goes
+       through the rest of the euro area (financial centres like
+       Luxembourg, Ireland, the Netherlands) and the rest of the world.
+       The biggest direct link is Germany and Spain.")
+  )
+
+  bilateral_section <- div(
+    h2("Who owes whom? The money flows behind TARGET, 2009 to 2025"),
+    p(class = "small",
+      "The ECB only publishes one TARGET balance per country, not who owes
+       whom. This table looks at the money that actually moved between
+       countries."),
+    tags$table(class = "bt", header, rows),
+    bt_read, bt_counted, bt_missing, bt_meaning
+  )
+}
 
 
 # 8. Put the page together
@@ -175,6 +243,8 @@ page <- tagList(
       topic_history, topic_debate, topic_source
     )
   ),
+
+  bilateral_section,                             # table under the chart
 
   p(class = "small",
     "Made with R by Angela Gales. ",
