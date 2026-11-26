@@ -6,34 +6,40 @@
 #
 # The ECB only gives one TARGET balance per central bank (against
 # the ECB), so we don't know who owes what to whom. Here I look at
-# the money that actually moved between countries from 2009 to
-# 2025 and compare it with how much TARGET moved over the same years.
+# the economic flows between countries from 2009 to 2025, to apprixmate this
+# bilateral movement and test what its components are.
 #
 # For each country (row) I add up money IN from a partner minus
 # money OUT to it. Partners (columns) are Germany, France, Italy,
 # Spain, rest of euro area, rest of world.
 #
 # Data, all published by partner country:
-#   - goods                       (IMF, IMTS)
-#   - services                    (Eurostat, bop_its6_det)
-#   - direct investment flows     (Eurostat, bop_fdi6_geo)
-#   - direct investment income    (Eurostat, bop_fdi6_geo)
-#   - portfolio, shares and bonds (IMF, PIP, used to be CPIS)
-#   - bank loans and deposits     (BIS, locational banking stats)
+#   - goods                       (IMF, IMTS) https://data.imf.org/en/datasets/IMF.STA:IMTS 
+#                                  Reason: One API request covers everything. IMTS has bilateral total + a "world" partner 
+#                                  (which gives the RoW column directly). Comext (Eurostat) is an alternative but it is built 
+#                                  around product detail (CN8 codes), so you have to request the "total" product code and handle 
+#                                  much larger, more complex extracts through a separate API endpoint. For EU countries IMTS is 
+#                                  largely the same data -- IMTS figures of euro-area members come mostly from the same national 
+#                                  and Eurostat customs sources.
+#                                  PS: this is customs data not raw BoP
+#   - services                    (Eurostat, bop_its6_det) https://ec.europa.eu/eurostat/databrowser/view/bop_its6_det/default/table?lang=en
+#   - direct investment positions,
+#       flow and income           (Eurostat, bop_fdi6_geo) https://ec.europa.eu/eurostat/databrowser/view/bop_fdi6_geo/default/table
+#   - portfolio, shares and bonds (IMF, PIP, used to be CPIS) https://data.imf.org/en/datasets/IMF.STA:PIP
+#   - bank loans and deposits     (BIS, locational banking stats) https://data.bis.org/topics/LBS
 # These are different parts of the balance of payments so nothing
 # is counted twice. Bank debt securities are taken out of the BIS
 # data because they are already in the portfolio data.
 #
-# Positive = more money came in than went out, so the country's
-# TARGET balance goes up.
 #
-# I don't make imputations. If something is not published it is not
-# counted and ends up in the gap. The gap also has everything that
-# is not published by partner: wages, interest and dividends,
-# transfers (EU budget, remittances), capital account, derivatives,
-# loans outside banks, errors and omissions.
+# I don't make imputations. If there is no observation for that
+# year, that year is not counted and ends up in the gap. The gap 
+# also has everything that is not published by partner: wages, 
+# interest and dividends, transfers (EU budget, remittances), 
+# capital account, derivatives, loans outside banks, errors and omissions.
 # ------------------------------------------------------------
 
+#0# PRELIMINARY - packages
 for (pkg in c("httr2", "jsonlite")) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
 }   # installs the pckgs only if missing
@@ -42,13 +48,13 @@ library(httr2)     # pckg to ask the IMF, BIS, ECB websites for data
 
 
 #1# GENERAL SETUP
-#    The four countries, rows and columns of the table
+#    The four countries, rows and columns of the table (picked the countries from Benoît's paper)
 four <- c("DE", "FR", "IT", "ES")
 full_names <- c(DE = "Germany", FR = "France", IT = "Italy", ES = "Spain")
 
 #    All 20 euro countries, because "rest of euro area" is the
 #    other 16 added up. 2 letter codes for ECB and BIS, 3 letter
-#    codes for the IMF, same order in both lists.
+#    codes for the IMF, same order in both lists so there's no messing 
 ea2 <- c("AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR",
          "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK")
 ea3 <- c("AUT", "BEL", "CYP", "DEU", "EST", "ESP", "FIN", "FRA", "GRC", "HRV",
@@ -58,14 +64,18 @@ names(ea3) <- ea2   # so ea3["DE"] gives "DEU"
 #    TARGET series only start in May 2008, so first December is 2008.
 #    Flows from 2009, TARGET from Dec 2008 to Dec 2025.
 base_year   <- 2008
-target_year <- 2025
+target_year <- 2025 (can chaneg to 2026 when data is released)
 
 world_imf <- "G001"   # "World" for the IMF
 world_bis <- "5J"     # "All countries" for the BIS
 
 
-#    Helper: download a table (csv) from a statistics website.
-#    If the site has nothing for the request we get an empty table.
+#    Helper: download one table (csv) from a statistics website
+#    (IMF or BIS). Written once so every download works the same way.
+#    - waits up to 10 minutes and tries 3 times if the site is busy
+#    - if the site says "no data" (error 404) I get an empty table,
+#      so the script doesn't crash and can ask again another way
+#    - any other error stops the script and shows which link failed
 get_csv <- function(url) {
   resp <- request(url) |>
     req_headers(Accept = "application/vnd.sdmx.data+csv;version=1.0.0") |>
@@ -83,8 +93,14 @@ get_csv <- function(url) {
   read.csv(text = txt, stringsAsFactors = FALSE)
 }
 
-#    Helper: the IMF sometimes gives units, sometimes millions or bls.
-#    I check one value I know the size of and put everything in mns.
+#    Helper: put IMF numbers in millions, like Eurostat and the BIS,
+#    so all sources can be added up. The IMF sometimes gives units,
+#    sometimes millions or bls, so I check one value I know the size
+#    of (e.g. German exports to France, about 100,000 mns of dollars):
+#    - above 1 bn   -> data was in units, divide by 1,000,000
+#    - below 10,000 -> data was in bls, multiply by 1,000
+#    - otherwise    -> already in mns, nothing to do
+#    Careful: data in thousands would not be caught.
 to_millions <- function(x, known_value) {
   if (known_value > 1e9) return(x / 1e6)   # was in units
   if (known_value < 1e4) return(x * 1e3)   # was in bls
@@ -132,10 +148,17 @@ fx_dec     <- setNames(fx$OBS_VALUE[fx$month == 12],    # December
 
 
 #    IMF helpers. The IMF website is asked directly.
-#    First I ask how a dataset is organised (which columns, which
-#    order), then I build the request in that order.
+#    An IMF request is one code with one piece per column of the
+#    dataset (country.indicator.partner...), and the pieces must be
+#    in the order the IMF wants. That order is not the same in every
+#    dataset and can change, so I ask the IMF first instead of
+#    writing it by hand.
 imf <- "https://api.imf.org/external/sdmx/2.1"
 
+#    Helper: ask the IMF how a dataset (`flow`, e.g. "IMTS" or "PIP")
+#    is organised. Gives back:
+#    - the version of the dataset ("latest" if none is found)
+#    - the list of its columns, in the order the request needs
 imf_structure <- function(flow) {
   url <- paste0(imf, "/dataflow/IMF.STA/", flow, "/latest?references=datastructure")
   txt <- request(url) |>
@@ -151,8 +174,13 @@ imf_structure <- function(flow) {
   list(version = version, dims = unique(ids))
 }
 
-#    `choose` = which codes I want in which column. Columns I don't
-#    mention are left open (I get everything).
+#    Helper: download IMF data.
+#    `choose` = which codes I want in which column, by column name.
+#    Columns I don't mention are left open (I get everything).
+#    - gets the column order from imf_structure
+#    - builds the request in that order, for 2008 to 2025, numbers only
+#    - prints the link so I can check what was asked
+#    - stops if the IMF sends nothing, since the rest needs these data
 imf_data <- function(flow, choose) {
   s <- imf_structure(flow)
   message(flow, " version ", s$version, ", dimensions: ", paste(s$dims, collapse = " . "))
@@ -169,8 +197,11 @@ imf_data <- function(flow, choose) {
   d
 }
 
-#    Empty table, one row and one column per euro country plus
-#    "RoW" (rest of world). Cell [i, j] = money INTO i FROM j, mns.
+#    Helper: empty table to fill in, one for each source.
+#    One row per euro country (20), one column per euro country
+#    plus "RoW" (rest of world). Cell [i, j] = money INTO i FROM j,
+#    mns. Cells with no data stay NA. Later cut down to my four
+#    countries and six columns (to_four).
 n <- length(ea2)
 empty_table <- function() {
   matrix(NA_real_, n, n + 1, dimnames = list(ea2, c(ea2, "RoW")))
@@ -190,9 +221,14 @@ tr <- imf_data("IMTS", list(COUNTRY = ea3,
 tr$year <- as.integer(substr(tr$TIME_PERIOD, 1, 4))
 tr <- tr[tr$year > base_year & tr$year <= target_year & !is.na(tr$OBS_VALUE), ]
 
-#    German exports to France as the known value to check the unit
+#    Convert goods in mns of euro, like the other sources, so they can
+#    be added up. The IMF sends dollars, in units, mns or bls.
+#    1. Reference value: German exports to France (median year),
+#       about 100 bls of dollars, so its size shows the unit
 known <- median(tr$OBS_VALUE[tr$COUNTRY == "DEU" & tr$COUNTERPART_COUNTRY == "FRA" &
                                tr$INDICATOR == "XG_FOB_USD"])
+#    2. Rescale everything to mns of dollars, then divide by that
+#       year's dollars-per-euro rate to get mns of euro
 tr$eur_mn <- to_millions(tr$OBS_VALUE, known) / fx_year[as.character(tr$year)]
 
 #    add up all years, per country, partner and exports/imports
